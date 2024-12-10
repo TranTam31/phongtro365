@@ -99,7 +99,7 @@ router.post('/login', async (req, res) => {
         jwt.sign({ email: userDoc.email, id: userDoc.id }, jwtSecret, {}, (err, token) => {
             if (err) throw err;
             res.cookie('token', token).json({
-                message: 'Đăng nhập thành công.',
+                message: `${token}`,
                 user: {
                     id: userDoc.id,
                     name: userDoc.name,

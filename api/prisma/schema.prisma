@@ -1,11 +1,11 @@
 generator client {
   provider = "prisma-client-js"
-  shadowDatabaseUrl = ""
 }
 
 datasource db {
   provider = "mysql"
   url      = env("DATABASE_URL")
+  shadowDatabaseUrl = "mysql://fall2024c56g11:phong365tro@10.96.210.203:3306/fall2024c56g11_shadow"
 }
 
 model Admin {

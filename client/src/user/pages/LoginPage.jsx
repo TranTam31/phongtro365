@@ -41,7 +41,7 @@ export default function LoginPage() {
         setBlacklistedMessage("Tài khoản của bạn đã bị khóa vĩnh viễn.");
       } else {
         setUser(data.user);
-        alert("Đăng nhập thành công");
+        alert(data.message);
         window.location.reload();
       }
     } catch (error) {
