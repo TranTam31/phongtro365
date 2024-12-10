@@ -16,7 +16,7 @@ import { RequireAuth } from './components/RequireAuth';
 import FavouritePage from './pages/FavouritePage';
 
 // axios.defaults.baseURL = 'http://localhost:4000';
-axios.defaults.baseURL = 'http://fall2024c56g11.int3306.freeddns.org';
+axios.defaults.baseURL = 'http://fall2024c56g11.int3306.freeddns.org/';
 axios.defaults.withCredentials = true;
 
 function App() {
