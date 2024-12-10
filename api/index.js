@@ -9,12 +9,6 @@ app.use(cors({
     origin: 'http://fall2024c56g11.int3306.freeddns.org/'
 }))
 
-app.use(express.static(path.join(__dirname, 'dist')));
-
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
 app.use(express.json())
 
 // routes
@@ -26,6 +20,12 @@ const bookingsRouter = require("./routes/Bookings");
 app.use("/booking", bookingsRouter);
 const adminRouter = require("./routes/Admin");
 app.use("/admin-api", adminRouter);
+
+app.use(express.static(path.join(__dirname, 'dist')));
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+});
 
 app.listen(4000, () => {
     console.log("Server running on port 4000");
