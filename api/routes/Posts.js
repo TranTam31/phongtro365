@@ -11,6 +11,7 @@ const fs = require('fs')
 
 // lưu ý đoạn path này nha
 const path = require('path')
+
 const parPath = path.join(__dirname, '..')
 router.use('/uploads', express.static(path.join(parPath, 'uploads')))
 
@@ -36,30 +37,54 @@ const createNotification = async (userId, type, message, placeId = null) => {
     }
 };
 
-router.post('/upload-by-link', async (req, res) => {
-    const {link} = req.body
-    const newName = 'photo' + Date.now() + '.jpg'
-    await imageDownloader.image({
-        url: link,
-        dest: parPath + '\\uploads\\' + newName
-    })
-    res.json(newName)
-})
+// Đường dẫn đến thư mục uploads ngoài thư mục cha
+const uploadsDir = path.join(__dirname, '../uploads');
 
-// const photosMiddleware = multer({dest: path.join(parPath, 'uploads/')})
-const photosMiddleware = multer({dest: 'uploads/'}) // đoạn này chỉ như này thôi
-router.post('/upload', photosMiddleware.array('photos', 100), (req, res) => {
-    const uploadedFiles = []
-    for(let i = 0; i < req.files.length; i++) {
-        const {path, originalname} = req.files[i] // lấy ra trg path và originalname trong response
-        const parts = originalname.split('.')
-        const ext = parts[parts.length - 1] 
-        const newPath = path + '.' + ext
-        fs.renameSync(path, newPath)
-        uploadedFiles.push(newPath.replace('uploads\\', ''))
+// Middleware để xử lý upload file từ máy lên
+const photosMiddleware = multer({ dest: uploadsDir }); // Sử dụng uploadsDir đã xác định ở trên
+
+// API upload ảnh từ link
+router.post('/upload-by-link', async (req, res) => {
+    const { link } = req.body;
+    const newName = 'photo' + Date.now() + '.jpg';  // Tên file ảnh mới
+    const destPath = path.join(uploadsDir, newName);  // Lưu ảnh vào thư mục uploads ngoài thư mục cha
+    
+    try {
+        await imageDownloader.image({
+            url: link,
+            dest: destPath  // Lưu ảnh vào thư mục uploads
+        });
+        res.json(newName);
+    } catch (error) {
+        console.error('Error downloading image:', error);
+        res.status(500).json({ error: 'Failed to download image' });
     }
-    res.json(uploadedFiles)
-})
+});
+
+// API upload ảnh từ máy lên
+router.post('/upload', photosMiddleware.array('photos', 100), (req, res) => {
+    const uploadedFiles = [];
+
+    for (let i = 0; i < req.files.length; i++) {
+        const { path: tempPath, originalname } = req.files[i];
+        const ext = path.extname(originalname);  // Lấy phần mở rộng của file (ví dụ: .jpg)
+        const newPath = tempPath + ext;  // Đổi tên file với phần mở rộng
+
+        try {
+            // Đổi tên file với phần mở rộng chính xác
+            fs.renameSync(tempPath, newPath);
+
+            // Lưu tên file vào mảng, bỏ phần tiền tố 'uploads/' khi lưu vào database
+            const filePath = newPath.replace(uploadsDir + path.sep, '');  // Sử dụng uploadsDir và path.sep để tạo đường dẫn tương thích
+            uploadedFiles.push(filePath);
+        } catch (error) {
+            console.error('Error renaming file:', error);
+            return res.status(500).json({ error: 'Failed to save file' });
+        }
+    }
+
+    res.json(uploadedFiles);
+});
 
 //hàm bổ sung để xóa các ảnh thừa trong folder upload
 async function cleanUnusedPhotos() {
@@ -181,71 +206,6 @@ router.get('/user-places', async (req, res) => {
         res.status(500).json({ error: 'Something went wrong, please try again later' });
     }
 });
-
-
-
-// hàm này cực kỳ quan trọng nha, thay thế cho hàm ở trên
-// router.get('/user-places', (req, res) => {
-//     // const { token } = req.cookies;
-//     const {token} = req.body
-//     jwt.verify(token, jwtSecret, {}, async (err, userData) => {
-//         if (err) return res.status(403).json({ error: 'Invalid token' });
-//         const { id } = userData;
-
-//         try {
-//             // Nhà đang chờ duyệt (có ít nhất một booking PENDING)
-//             const pendingPlaces = await prisma.place.findMany({
-//                 where: {
-//                     ownerId: id,
-//                     bookings: {
-//                         some: {
-//                             status: 'PENDING'
-//                         }
-//                     }
-//                 },
-//                 include: {
-//                     photos: true,
-//                     bookings: {
-//                         select: {
-//                             id: true,
-//                             status: true
-//                         }
-//                     }
-//                 }
-//             });
-
-//             // Nhà đã thuê (có ít nhất một booking APPROVED)
-//             const approvedPlaces = await prisma.place.findMany({
-//                 where: {
-//                     ownerId: id,
-//                     bookings: {
-//                         some: {
-//                             status: 'APPROVED'
-//                         }
-//                     }
-//                 },
-//                 include: {
-//                     photos: true,
-//                     bookings: {
-//                         select: {
-//                             id: true,
-//                             status: true
-//                         }
-//                     }
-//                 }
-//             });
-
-//             res.json({
-//                 pendingPlaces,
-//                 approvedPlaces
-//             });
-//         } catch (error) {
-//             console.error("Error fetching user places:", error);
-//             res.status(500).json({ error: 'Something went wrong while fetching places.' });
-//         }
-//     });
-// });
-
 
 router.get('/place/:id', async (req, res) => {
     const { id } = req.params;
@@ -512,34 +472,6 @@ router.put('/hidden-home/:placeId', async (req, res) => {
         res.status(500).json({ message: 'Lỗi khi xử lý yêu cầu.' });
     }
 });
-
-// router.post('/add-report', async (req, res) => {
-//     const {token} = req.cookies
-//     const {reason, placeId} = req.body
-
-//     jwt.verify(token, jwtSecret, async (err, userData) => {
-//         if (err) {
-//             return res.status(401).json({ message: 'Token không hợp lệ.' });
-//         }
-
-//         const userId = userData.id;
-
-//         try {
-//             // Tạo report
-//             await prisma.report.create({
-//                 data: {
-//                     reporterId: userId,
-//                     reason: reason,
-//                     placeId: parseInt(placeId, 10)
-//                 }
-//             });
-//             return res.status(200).json({ message: 'Report đã được gửi cho admin' });
-//         } catch (error) {
-//             console.error(error);
-//             return res.status(500).json({ message: 'Có lỗi xảy ra khi xóa tài khoản.' });
-//         }
-//     });
-// })
 
 router.post('/add-report', async (req, res) => {
     const { token } = req.cookies;
